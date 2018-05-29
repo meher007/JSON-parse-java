@@ -142,7 +142,14 @@ public class Main {
         System.out.println("Please check SQL statement in your resource repository" );
 
 
-
+    System.out.println("Do you want to insert " + fileName + " in a Database(Y/N): ");
+        
+        if(input.nextLine().equalsIgnoreCase("Y")) {
+            new InsertDB(json);// Passing json into InsertDB class through the constructor
+        }
+        else {
+            System.out.println("Thank you for using our system");
+        }
 
     }
 }
