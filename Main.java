@@ -4,6 +4,10 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.io.*;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.Scanner;
 
 public class Main {
@@ -15,7 +19,7 @@ public class Main {
         String inputFile;
         System.out.print("Please enter file name: ");
         inputFile = input.nextLine();
-        String fileName = inputFile;// Using filename later in the program
+
         FileReader fileReader = null;
         try {
             fileReader = new FileReader(inputFile);// JSON file is in fileReader
@@ -38,26 +42,24 @@ public class Main {
                 line = bufferedReader.readLine(); // Getting a new line
             }
             json = stringBuilder.toString();
-            //System.out.println(json);
+            System.out.println(json);
         } catch (IOException e) {
             e.printStackTrace();
         } finally {// May exception arise when finally try to close bufferedReader
             try {
-                bufferedReader.close();// bufferedReader class used as a resource class therefore we need close it
+                bufferedReader.close();
             } catch (IOException e) {
                 e.printStackTrace();
             }
         }
 
+        // The following third party library is used
+        //https://github.com/stleary/JSON-java
 
-        JSONArray array = new JSONArray(json); // this will give you an array of all the nodes
+        JSONArray array = new JSONArray(json); //Getting an array of entire JSON node
 
 
-
-
-        //System.out.println(array2.get(0));
-
-        StringBuilder mysql = new StringBuilder("CREATE TABLE IF NOT EXISTS `USER` (\n" +
+        StringBuilder mysql = new StringBuilder("CREATE TABLE IF NOT EXISTS `USER` (\n" + //SQL statement of table creating
                 "\t`Name` varchar(256),\n" +
                 "\t`AlarmColor` int(16),\n" +
                 "\t`Id` int(12),\n" +
@@ -79,77 +81,55 @@ public class Main {
                 "\t`UniqueID` varchar(256),\n" +
                 "\tPRIMARY KEY  (`Id`)\n);\n\n");
 
-        mysql.append("INSERT INTO `USER`" +
-                "\n\t(`Name`, `AlarmColor`, `Id`, `Key1`, `Value1`, `Key2`, `Value2`, `Key3`, `Value3`, `Key4`, `Value4`, `Key5`, `Value5`, `Key6`, `Value6`, `DatasourcesCount`,`_alertIcon`, `ElementCount`, `UniqueID`)" +
-                "\n\tVALUES");
+        StringBuilder mysql2 = new StringBuilder("INSERT INTO `USER`" + "\n\t(`Name`, `AlarmColor`, `Id`, `Key1`, `Value1`, `Key2`, `Value2`, `Key3`, `Value3`, `Key4`, `Value4`, `Key5`, `Value5`, `Key6`, `Value6`, `DatasourcesCount`,`_alertIcon`, `ElementCount`, `UniqueID`)" + "\n\tVALUES");
 
-        for(int i = 0; i < array.length(); i++)
-        {
+        for (int i = 0; i < array.length(); i++) {
+
             JSONObject jo = (JSONObject) array.get(i);
-            mysql.append("\n\t('" + jo.get("Name") + "',");
-            mysql.append(jo.get("AlarmColor") + ",");
-            mysql.append(jo.get("Id") + ",");
+            mysql2.append("\n\t('" + jo.get("Name") + "',");
+            mysql2.append(jo.get("AlarmColor") + ",");
+            mysql2.append(jo.get("Id") + ",");
 
             JSONArray array2 = (JSONArray) jo.get("Parameters");
             for (int j = 0; j < array2.length(); j++) {
                 JSONObject jo2 = (JSONObject) array2.get(j);
-                mysql.append("'" + jo2.get("Key") + "',");
-                mysql.append("'" + jo2.get("Value") + "',");
+                mysql2.append("'" + jo2.get("Key") + "',");
+                mysql2.append("'" + jo2.get("Value") + "',");
             }
+            //System.out.println("array2.length() is " + array2.length());
             int nullentries = 6 - array2.length();
             for (int j = 0; j < nullentries; j++) {
-                mysql.append("'' ,"); // Entering null value because of inconsistency in 4th JSON object
-                mysql.append("'' ,");
-            }
-            mysql.append(jo.get("DatasourcesCount") + ",");
-            mysql.append("'" + jo.get("_alertIcon") + "',");
-            mysql.append(jo.get("ElementCount") + ",");
-            mysql.append("'" + jo.get("UniqueID") + "')");
-            if(i < array.length() - 1)
-                mysql.append(",");
-        }
-
-        mysql.append(";\n\n");
-
-        System.out.print("Do you want " + fileName + " in a SQL statement(Y/N):");
-        if(input.nextLine().equalsIgnoreCase("N")) {
-            System.out.println(json);
-        }
-        else {
-            System.out.print("Provide a file name for save SQL statement:");
-            String name = input.nextLine();
-
-            FileWriter fw = null;
-            try {
-                fw = new FileWriter(name, false);
-            } catch (IOException e) {
-                e.printStackTrace();
+                mysql2.append("'' ,"); // Entering null value because of inconsistency in 4th JSON object
+                mysql2.append("'' ,");
             }
 
-            BufferedWriter writer = new BufferedWriter(fw);
-            try {
-                writer.write(mysql.toString());
-            } catch (IOException e) {
-                e.printStackTrace();
-            } finally {
-                try {
-                    writer.close();
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-            }
+            mysql2.append(jo.get("DatasourcesCount") + ",");
+            mysql2.append("'" + jo.get("_alertIcon") + "',");
+            mysql2.append(jo.get("ElementCount") + ",");
+            mysql2.append("'" + jo.get("UniqueID") + "')");
+            if (i < array.length() - 1) mysql2.append(",");
         }
-        System.out.println("Please check SQL statement in your resource repository" );
 
+        mysql2.append(";\n\n"); //SQL statement require a semicolons at the end
 
-    System.out.println("Do you want to insert " + fileName + " in a Database(Y/N): ");
-        
-        if(input.nextLine().equalsIgnoreCase("Y")) {
-            new InsertDB(json);// Passing json into InsertDB class through the constructor
+        //The following jdbc driver is used
+        //https://dev.mysql.com/downloads/connector/j/
+        try {
+            //Configure MySQL ocnnection
+            Connection myConn = DriverManager.getConnection("jdbc:mysql://localhost:3306/poledb", "root", "root");
+
+            Statement myStmt = myConn.createStatement();
+
+            myStmt.executeUpdate(mysql.toString());
+            myStmt.executeUpdate(mysql2.toString());
+        } catch (SQLException e) {
+            e.printStackTrace();
         }
-        else {
-            System.out.println("Thank you for using our system");
-        }
+
 
     }
+
+
+
+
 }
